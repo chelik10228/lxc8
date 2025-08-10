@@ -84,7 +84,8 @@ init(CPU* cpu) {
 
 main(int argc, char** argv) {
   if (argv[1] == NULL) {
-    puts("Error");
+    puts("Usage:");
+    puts("   lxc8 <file> - execute file");
     return 1;
   }
   CPU cpu;
