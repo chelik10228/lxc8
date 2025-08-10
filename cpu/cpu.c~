@@ -1,0 +1,98 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <unistd.h>
+
+enum {
+  L1=0,L2,L3,L4,
+  L5,L6,L7,L8
+};
+
+uint8_t opcode;
+uint8_t reg;
+uint8_t imm;
+
+typedef struct {
+  uint8_t mem[65536];
+  uint8_t regs[8];
+  uint16_t PC;
+} CPU;
+
+uint16_t read16(uint8_t* mem, uint16_t addr) {
+  return (mem[addr] << 8) | (mem[addr+1]);
+}
+
+uint8_t UNK(CPU* cpu) {
+  printf("unknown instruction 0x%02X at 0x%04X\n", opcode, cpu->PC);
+  return 1;
+}
+
+uint8_t MV0(CPU* cpu) {
+  cpu->regs[reg] = imm;
+  return 0;
+}
+
+uint8_t STP(CPU* cpu) {
+  return 1;
+}
+
+uint8_t MV1(CPU* cpu) {
+  cpu->regs[imm & 7] = cpu->regs[reg];
+  return 0;
+}
+
+uint8_t OUT(CPU* cpu) {
+  putchar(cpu->regs[reg]+imm);
+  return 0;
+}
+
+uint8_t (*INSTS[32])(CPU*) = {
+  &UNK, &MV0, &MV1, &OUT, &UNK, &UNK, &UNK, &UNK,
+  &STP, &UNK, &UNK, &UNK, &UNK, &UNK, &UNK, &UNK,
+  &UNK, &UNK, &UNK, &UNK, &UNK, &UNK, &UNK, &UNK,
+  &UNK, &UNK, &UNK, &UNK, &UNK, &UNK, &UNK, &UNK
+};
+
+exec(CPU* cpu) {
+  uint16_t instr = read16(cpu->mem, cpu->PC);
+  opcode = ((instr & 0xF800) >> 11) & 31;
+  reg = (instr & 0x0700) >> 8;
+  imm = instr & 0x00FF;
+  /* printf("%04X\n", instr);
+  printf("%02X %02X %02X\n", opcode, reg, imm);
+  printf("L1: %02X\n", cpu->regs[L1]);
+  printf("L2: %02X\n", cpu->regs[L2]);
+  printf("L3: %02X\n", cpu->regs[L3]);
+  printf("L4: %02X\n", cpu->regs[L4]);
+  printf("L5: %02X\n", cpu->regs[L5]);
+  printf("L6: %02X\n", cpu->regs[L6]);
+  printf("L7: %02X\n", cpu->regs[L7]);
+  printf("L8: %02X\n", cpu->regs[L8]); */
+  if (INSTS[opcode](cpu)) return 1;
+  // getchar();
+  cpu->PC += 2;
+  return 0;
+}
+
+init(CPU* cpu) {
+  cpu->PC = 0;
+  int i;
+  for (i=0; i<8; i++) {
+    cpu->regs[i] = 0;
+  }
+}
+
+main(int argc, char** argv) {
+  if (argv[1] == NULL) {
+    puts("Error");
+    return 1;
+  }
+  CPU cpu;
+  FILE* f = fopen(argv[1], "rb");
+  fread(cpu.mem, 1, 65536, f);
+  fclose(f);
+  init(&cpu);
+  while (1) {
+    if (exec(&cpu)) break;
+  }
+}
